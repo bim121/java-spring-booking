@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: booking_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+    
+    - name: Run checkstyle
+      run: mvn checkstyle:check
+    
+    - name: Run tests
+      run: mvn test
+      env:
+        DB_URL: jdbc:postgresql://localhost:5432/booking_db
+        DB_USERNAME: postgres
+        DB_PASSWORD: postgres
+        JWT_SECRET: test-secret-key-for-ci-min-256-bits-required-for-jwt-security
+        JWT_EXPIRATION: 86400000
+    
+    - name: Generate coverage report
+      run: mvn jacoco:report
+    
+    - name: Check coverage
+      run: |
+        COVERAGE=$(grep -oP 'td class="ctr2">\K[0-9]+' target/site/jacoco/index.html | head -1)
+        if [ "$COVERAGE" -lt 60 ]; then
+          echo "Coverage is $COVERAGE%, which is below the required 60%"
+          exit 1
+        fi

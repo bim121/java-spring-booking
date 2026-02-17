@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-payments-table
+      author: booking-service
+      changes:
+        - createTable:
+            tableName: payments
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: booking_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_payment_booking
+                    referencedTableName: bookings
+                    referencedColumnNames: id
+              - column:
+                  name: session_url
+                  type: VARCHAR(500)
+              - column:
+                  name: session_id
+                  type: VARCHAR(255)
+              - column:
+                  name: amount_to_pay
+                  type: DECIMAL(10,2)
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_payments_booking_id
+            tableName: payments
+            columns:
+              - column:
+                  name: booking_id
