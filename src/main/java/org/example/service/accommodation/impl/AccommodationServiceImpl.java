@@ -17,6 +17,7 @@ public class AccommodationServiceImpl implements AccommodationService {
     private final AccommodationRepository accommodationRepository;
     private final AccommodationMapper accommodationMapper;
 
+    @Override
     @Transactional
     public AccommodationResponse createAccommodation(AccommodationRequest request) {
         Accommodation accommodation = accommodationMapper.toEntity(request);
@@ -24,31 +25,51 @@ public class AccommodationServiceImpl implements AccommodationService {
         return accommodationMapper.toResponse(saved);
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public List<AccommodationResponse> getAllAccommodations() {
-        List<Accommodation> accommodations = accommodationRepository.findAll();
-        return accommodationMapper.toResponseList(accommodations);
+        return accommodationMapper.toResponseList(
+                accommodationRepository.findAll()
+        );
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public AccommodationResponse getAccommodationById(Long id) {
-        Accommodation accommodation = accommodationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Accommodation not found"));
-        return accommodationMapper.toResponse(accommodation);
+        return accommodationMapper.toResponse(
+                getAccommodationEntityById(id)
+        );
     }
 
+    @Override
     @Transactional
-    public AccommodationResponse updateAccommodation(Long id, AccommodationRequest request) {
-        Accommodation accommodation = accommodationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Accommodation not found"));
+    public AccommodationResponse updateAccommodation(
+            Long id,
+            AccommodationRequest request) {
+
+        Accommodation accommodation = getAccommodationEntityById(id);
+
         accommodationMapper.updateEntityFromRequest(request, accommodation);
+
         Accommodation updated = accommodationRepository.save(accommodation);
+
         return accommodationMapper.toResponse(updated);
     }
 
+    @Override
     @Transactional
     public void deleteAccommodation(Long id) {
         if (!accommodationRepository.existsById(id)) {
             throw new IllegalArgumentException("Accommodation not found");
         }
         accommodationRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Accommodation getAccommodationEntityById(Long id) {
+        return accommodationRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Accommodation not found"));
     }
 }

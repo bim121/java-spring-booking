@@ -3,6 +3,7 @@ package org.example.service.accommodation;
 import java.util.List;
 import org.example.dto.request.AccommodationRequest;
 import org.example.dto.response.AccommodationResponse;
+import org.example.entity.Accommodation;
 
 public interface AccommodationService {
     AccommodationResponse createAccommodation(AccommodationRequest request);
@@ -14,4 +15,6 @@ public interface AccommodationService {
     AccommodationResponse updateAccommodation(Long id, AccommodationRequest request);
 
     void deleteAccommodation(Long id);
+
+    Accommodation getAccommodationEntityById(Long id);
 }

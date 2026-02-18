@@ -19,5 +19,7 @@ public interface UserService {
 
     UserResponse updateUserRole(Long userId, UserRole role);
 
-    User getUserByEmail(String email);
+    User getUserEntityByEmail(String email);
+
+    User getUserEntityById(Long id);
 }

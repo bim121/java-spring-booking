@@ -5,13 +5,17 @@ import org.example.dto.request.BookingRequest;
 import org.example.dto.response.BookingDetailResponse;
 
 public interface BookingService {
-    BookingDetailResponse createBooking(BookingRequest request, Long userId);
+    BookingDetailResponse createBooking(BookingRequest request, String email);
 
-    List<BookingDetailResponse> getUserBookings(Long userId);
+    List<BookingDetailResponse> getUserBookings(String email, String status);
 
-    List<BookingDetailResponse> getUserBookingsByStatus(Long userId, String status);
+    List<BookingDetailResponse> getBookingsForManager(Long userId, String status);
 
-    BookingDetailResponse getBookingById(Long bookingId, Long userId);
+    BookingDetailResponse getBookingById(Long bookingId, String email);
 
-    BookingDetailResponse getBookingByIdForManager(Long bookingId);
+    BookingDetailResponse updateBooking(Long bookingId,
+                                        BookingRequest request,
+                                        String email);
+
+    void cancelBooking(Long bookingId, String email);
 }

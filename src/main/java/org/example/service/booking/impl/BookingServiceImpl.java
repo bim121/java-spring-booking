@@ -11,10 +11,10 @@ import org.example.entity.Booking;
 import org.example.entity.User;
 import org.example.mapper.BookingMapper;
 import org.example.model.BookingStatus;
-import org.example.repository.AccommodationRepository;
 import org.example.repository.BookingRepository;
-import org.example.repository.UserRepository;
+import org.example.service.accommodation.AccommodationService;
 import org.example.service.booking.BookingService;
+import org.example.service.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,65 +22,148 @@ import org.springframework.transaction.annotation.Transactional;
 @AllArgsConstructor
 public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
-    private final AccommodationRepository accommodationRepository;
-    private final UserRepository userRepository;
+    private final AccommodationService accommodationService;
+    private final UserService userService;
     private final BookingMapper bookingMapper;
 
+    @Override
     @Transactional
-    public BookingDetailResponse createBooking(BookingRequest request, Long userId) {
+    public BookingDetailResponse createBooking(
+            BookingRequest request,
+            String email) {
+
         validateBookingDates(request.getCheckInDate(), request.getCheckOutDate());
-        Accommodation accommodation = accommodationRepository.findById(request.getAccommodationId())
-                .orElseThrow(() -> new IllegalArgumentException("Accommodation not found"));
+
+        Accommodation accommodation =
+                accommodationService.getAccommodationEntityById(
+                        request.getAccommodationId());
+
         validateAccommodationAvailability(
                 accommodation,
                 request.getCheckInDate(),
                 request.getCheckOutDate()
         );
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        User user = userService.getUserEntityByEmail(email);
+
         Booking booking = bookingMapper.toBooking(request);
         booking.setAccommodation(accommodation);
         booking.setUser(user);
         booking.setStatus(BookingStatus.PENDING);
-        Booking savedBooking = bookingRepository.save(booking);
-        return bookingMapper.toDetailResponse(savedBooking);
+
+        return bookingMapper.toDetailResponse(
+                bookingRepository.save(booking)
+        );
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public List<BookingDetailResponse> getUserBookings(Long userId) {
-        List<Booking> bookings = bookingRepository.findByUserId(userId);
-        return bookingMapper.toDetailResponseList(bookings);
-    }
+    public List<BookingDetailResponse> getUserBookings(
+            String email,
+            String status) {
 
-    @Transactional(readOnly = true)
-    public List<BookingDetailResponse> getUserBookingsByStatus(Long userId, String status) {
-        try {
-            BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
-            List<Booking> bookings = bookingRepository.findByUserIdAndStatus(userId, bookingStatus);
-            return bookingMapper.toDetailResponseList(bookings);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid booking status: " + status);
+        User user = userService.getUserEntityByEmail(email);
+
+        if (status != null && !status.isBlank()) {
+            BookingStatus bookingStatus =
+                    BookingStatus.valueOf(status.toUpperCase());
+
+            return bookingMapper.toDetailResponseList(
+                    bookingRepository.findByUserIdAndStatus(
+                            user.getId(),
+                            bookingStatus
+                    )
+            );
         }
+
+        return bookingMapper.toDetailResponseList(
+                bookingRepository.findByUserId(user.getId())
+        );
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public BookingDetailResponse getBookingById(Long bookingId, Long userId) {
-        Booking booking = bookingRepository.findByIdAndUserId(bookingId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+    public List<BookingDetailResponse> getBookingsForManager(
+            Long userId,
+            String status) {
+
+        if (status != null && !status.isBlank()) {
+            BookingStatus bookingStatus =
+                    BookingStatus.valueOf(status.toUpperCase());
+
+            return bookingMapper.toDetailResponseList(
+                    bookingRepository.findByUserIdAndStatus(
+                            userId,
+                            bookingStatus
+                    )
+            );
+        }
+
+        return bookingMapper.toDetailResponseList(
+                bookingRepository.findByUserId(userId)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingDetailResponse getBookingById(
+            Long bookingId,
+            String email) {
+
+        User user = userService.getUserEntityByEmail(email);
+
+        Booking booking = bookingRepository
+                .findByIdAndUserId(bookingId, user.getId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Booking not found"));
+
         return bookingMapper.toDetailResponse(booking);
     }
 
-    @Transactional(readOnly = true)
-    public BookingDetailResponse getBookingByIdForManager(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
-        return bookingMapper.toDetailResponse(booking);
+    @Override
+    @Transactional
+    public BookingDetailResponse updateBooking(
+            Long bookingId,
+            BookingRequest request,
+            String email) {
+
+        User user = userService.getUserEntityByEmail(email);
+
+        Booking booking = bookingRepository
+                .findByIdAndUserId(bookingId, user.getId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Booking not found"));
+
+        validateBookingDates(request.getCheckInDate(), request.getCheckOutDate());
+
+        booking.setCheckInDate(request.getCheckInDate());
+        booking.setCheckOutDate(request.getCheckOutDate());
+
+        return bookingMapper.toDetailResponse(
+                bookingRepository.save(booking)
+        );
+    }
+
+    @Override
+    @Transactional
+    public void cancelBooking(Long bookingId, String email) {
+
+        User user = userService.getUserEntityByEmail(email);
+
+        Booking booking = bookingRepository
+                .findByIdAndUserId(bookingId, user.getId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Booking not found"));
+
+        booking.setStatus(BookingStatus.CANCELED);
+
+        bookingRepository.save(booking);
     }
 
     private void validateBookingDates(LocalDate checkIn, LocalDate checkOut) {
         if (checkOut.isBefore(checkIn) || checkOut.isEqual(checkIn)) {
             throw new IllegalArgumentException(
-                    "Check-out date must be after check-in date");
+                    "Check-out must be after check-in");
         }
     }
 
@@ -88,16 +171,21 @@ public class BookingServiceImpl implements BookingService {
             Accommodation accommodation,
             LocalDate checkIn,
             LocalDate checkOut) {
-        List<BookingStatus> activeStatuses = Arrays.asList(
-                BookingStatus.PENDING, BookingStatus.CONFIRMED);
-        long overlappingBookings = bookingRepository.countOverlappingBookings(
-                accommodation.getId(),
-                checkIn,
-                checkOut,
-                activeStatuses);
-        if (overlappingBookings >= accommodation.getAvailability()) {
+
+        List<BookingStatus> activeStatuses =
+                Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED);
+
+        long overlapping =
+                bookingRepository.countOverlappingBookings(
+                        accommodation.getId(),
+                        checkIn,
+                        checkOut,
+                        activeStatuses
+                );
+
+        if (overlapping >= accommodation.getAvailability()) {
             throw new IllegalArgumentException(
-                    "Accommodation is not available for the selected dates");
+                    "Accommodation not available for selected dates");
         }
     }
 }

@@ -8,6 +8,7 @@ import org.example.dto.response.JwtResponse;
 import org.example.dto.response.UserResponse;
 import org.example.entity.User;
 import org.example.mapper.UserMapper;
+import org.example.model.UserRole;
 import org.example.repository.UserRepository;
 import org.example.security.JwtTokenProvider;
 import org.example.service.user.UserService;
@@ -24,60 +25,95 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserMapper userMapper;
 
+    @Override
     @Transactional
     public UserResponse register(RegisterRequest request) {
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
+
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(org.example.model.UserRole.CUSTOMER);
+        user.setRole(UserRole.CUSTOMER);
+
         User savedUser = userRepository.save(user);
+
         return userMapper.toResponse(savedUser);
     }
 
+    @Override
     public JwtResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+
+        User user = getUserEntityByEmail(request.getEmail());
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Invalid email or password");
         }
+
         String token = jwtTokenProvider.generateToken(
-                user.getEmail(), user.getId(), user.getRole().name());
+                user.getEmail(),
+                user.getId(),
+                user.getRole().name()
+        );
+
         return new JwtResponse(token, "Bearer");
     }
 
+    @Override
+    @Transactional(readOnly = true)
     public UserResponse getCurrentUser(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(getUserEntityByEmail(email));
     }
 
+    @Override
     @Transactional
-    public UserResponse updateCurrentUser(String email, UpdateUserRequest request) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userRepository.existsByEmail(request.getEmail())) {
-                throw new IllegalArgumentException("Email already exists");
-            }
+    public UserResponse updateCurrentUser(
+            String email,
+            UpdateUserRequest request) {
+
+        User user = getUserEntityByEmail(email);
+
+        if (request.getEmail() != null
+                && !request.getEmail().equals(user.getEmail())
+                && userRepository.existsByEmail(request.getEmail())) {
+
+            throw new IllegalArgumentException("Email already exists");
         }
+
         userMapper.updateEntityFromRequest(request, user);
+
         User updatedUser = userRepository.save(user);
+
         return userMapper.toResponse(updatedUser);
     }
 
+    @Override
     @Transactional
-    public UserResponse updateUserRole(Long userId, org.example.model.UserRole role) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public UserResponse updateUserRole(Long userId, UserRole role) {
+
+        User user = getUserEntityById(userId);
+
         user.setRole(role);
-        User updatedUser = userRepository.save(user);
-        return userMapper.toResponse(updatedUser);
+
+        return userMapper.toResponse(
+                userRepository.save(user)
+        );
     }
 
-    public User getUserByEmail(String email) {
+    @Override
+    @Transactional(readOnly = true)
+    public User getUserEntityByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public User getUserEntityById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
     }
 }
