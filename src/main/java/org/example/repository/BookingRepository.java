@@ -7,6 +7,7 @@ import org.example.entity.Booking;
 import org.example.model.BookingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,30 +15,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    @Query("SELECT b FROM Booking b JOIN FETCH b.accommodation "
-            + "JOIN FETCH b.user WHERE b.user.id = :userId")
-    List<Booking> findByUserId(@Param("userId") Long userId);
-
-    @Query(value = "SELECT b FROM Booking b "
-            + "WHERE b.user.id = :userId",
-            countQuery = "SELECT COUNT(b) FROM Booking b WHERE b.user.id = :userId")
-    Page<Booking> findByUserIdPageable(@Param("userId") Long userId, Pageable pageable);
-
-    @Query("SELECT b FROM Booking b JOIN FETCH b.accommodation JOIN FETCH b.user "
-            + "WHERE b.user.id = :userId AND b.status = :status")
-    List<Booking> findByUserIdAndStatus(
-            @Param("userId") Long userId,
-            @Param("status") BookingStatus status);
-
-    @Query(value = "SELECT b FROM Booking b "
-            + "WHERE b.user.id = :userId AND b.status = :status",
-            countQuery = "SELECT COUNT(b) FROM Booking b "
-                    + "WHERE b.user.id = :userId AND b.status = :status")
-    Page<Booking> findByUserIdAndStatusPageable(
-            @Param("userId") Long userId,
-            @Param("status") BookingStatus status,
-            Pageable pageable);
-
+    @EntityGraph(attributePaths = {"accommodation", "user"})
     @Query(value = "SELECT b FROM Booking b "
             + "WHERE (:userId IS NULL OR b.user.id = :userId) "
             + "AND (:status IS NULL OR b.status = :status)",
@@ -69,16 +47,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses,
             @Param("excludeBookingId") Long excludeBookingId);
 
-    @Query("SELECT b FROM Booking b JOIN FETCH b.accommodation JOIN FETCH b.user "
-            + "WHERE b.id = :id AND b.user.id = :userId")
+    @EntityGraph(attributePaths = {"accommodation", "user"})
+    @Query("SELECT b FROM Booking b WHERE b.id = :id AND b.user.id = :userId")
     Optional<Booking> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
-    @Query("SELECT DISTINCT b FROM Booking b "
-            + "JOIN FETCH b.accommodation JOIN FETCH b.user "
-            + "WHERE b.id IN :ids")
-    List<Booking> findByIdsWithRelations(@Param("ids") List<Long> ids);
-
-    @Query("SELECT b FROM Booking b JOIN FETCH b.accommodation JOIN FETCH b.user "
-            + "WHERE b.id = :id")
-    Optional<Booking> findByIdWithRelations(@Param("id") Long id);
+    @EntityGraph(attributePaths = {"accommodation", "user"})
+    Optional<Booking> findById(Long id);
 }

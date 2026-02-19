@@ -3,7 +3,6 @@ package org.example.service.booking.impl;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.example.dto.request.BookingRequest;
 import org.example.dto.response.BookingDetailResponse;
@@ -17,7 +16,6 @@ import org.example.service.accommodation.AccommodationService;
 import org.example.service.booking.BookingService;
 import org.example.service.user.UserService;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,31 +33,24 @@ public class BookingServiceImpl implements BookingService {
     public BookingDetailResponse createBooking(
             BookingRequest request,
             String email) {
-
         validateBookingDates(request.getCheckInDate(), request.getCheckOutDate());
-
         Accommodation accommodation =
                 accommodationService.getAccommodationEntityById(
                         request.getAccommodationId());
-
         if (accommodation.getAvailability() <= 0) {
             throw new IllegalArgumentException(
                     "Accommodation is not available");
         }
-
         validateAccommodationAvailability(
                 accommodation,
                 request.getCheckInDate(),
                 request.getCheckOutDate()
         );
-
         User user = userService.getUserEntityByEmail(email);
-
         Booking booking = bookingMapper.toBooking(request);
         booking.setAccommodation(accommodation);
         booking.setUser(user);
         booking.setStatus(BookingStatus.PENDING);
-
         return bookingMapper.toDetailResponse(
                 bookingRepository.save(booking)
         );
@@ -71,39 +62,17 @@ public class BookingServiceImpl implements BookingService {
             String email,
             String status,
             Pageable pageable) {
-
         User user = userService.getUserEntityByEmail(email);
-
-        Page<Booking> bookingPage;
-
+        BookingStatus bookingStatus = null;
         if (status != null && !status.isBlank()) {
-            BookingStatus bookingStatus =
-                    BookingStatus.valueOf(status.toUpperCase());
-
-            bookingPage = bookingRepository.findByUserIdAndStatusPageable(
-                    user.getId(),
-                    bookingStatus,
-                    pageable
-            );
-        } else {
-            bookingPage = bookingRepository.findByUserIdPageable(
-                    user.getId(),
-                    pageable
-            );
+            bookingStatus = BookingStatus.valueOf(status.toUpperCase());
         }
-
-        List<Booking> bookingsWithRelations = fetchBookingsWithRelations(
-                bookingPage.getContent()
+        Page<Booking> bookingPage = bookingRepository.findAllBookings(
+                user.getId(),
+                bookingStatus,
+                pageable
         );
-
-        List<BookingDetailResponse> responses =
-                bookingMapper.toDetailResponseList(bookingsWithRelations);
-
-        return new PageImpl<>(
-                responses,
-                bookingPage.getPageable(),
-                bookingPage.getTotalElements()
-        );
+        return bookingPage.map(bookingMapper::toDetailResponse);
     }
 
     @Override
@@ -112,7 +81,6 @@ public class BookingServiceImpl implements BookingService {
             Long userId,
             String status,
             Pageable pageable) {
-
         BookingStatus bookingStatus = null;
         if (status != null && !status.isBlank()) {
             try {
@@ -121,25 +89,12 @@ public class BookingServiceImpl implements BookingService {
                 throw new IllegalArgumentException("Invalid booking status: " + status);
             }
         }
-
         Page<Booking> bookingPage = bookingRepository.findAllBookings(
                 userId,
                 bookingStatus,
                 pageable
         );
-
-        List<Booking> bookingsWithRelations = fetchBookingsWithRelations(
-                bookingPage.getContent()
-        );
-
-        List<BookingDetailResponse> responses =
-                bookingMapper.toDetailResponseList(bookingsWithRelations);
-
-        return new PageImpl<>(
-                responses,
-                bookingPage.getPageable(),
-                bookingPage.getTotalElements()
-        );
+        return bookingPage.map(bookingMapper::toDetailResponse);
     }
 
     @Override
@@ -147,14 +102,11 @@ public class BookingServiceImpl implements BookingService {
     public BookingDetailResponse getBookingById(
             Long bookingId,
             String email) {
-
         User user = userService.getUserEntityByEmail(email);
-
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Booking not found"));
-
         return bookingMapper.toDetailResponse(booking);
     }
 
@@ -162,7 +114,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional(readOnly = true)
     public BookingDetailResponse getBookingByIdForManager(Long bookingId) {
         Booking booking = bookingRepository
-                .findByIdWithRelations(bookingId)
+                .findById(bookingId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Booking not found"));
 
@@ -175,34 +127,26 @@ public class BookingServiceImpl implements BookingService {
             Long bookingId,
             BookingRequest request,
             String email) {
-
         User user = userService.getUserEntityByEmail(email);
-
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Booking not found"));
-
         if (booking.getStatus() == BookingStatus.CANCELED
                 || booking.getStatus() == BookingStatus.EXPIRED) {
             throw new IllegalArgumentException(
                     "Cannot update a canceled or expired booking");
         }
-
         validateBookingDates(request.getCheckInDate(), request.getCheckOutDate());
-
         Accommodation accommodation = booking.getAccommodation();
-
         validateAccommodationAvailabilityExcluding(
                 accommodation,
                 request.getCheckInDate(),
                 request.getCheckOutDate(),
                 bookingId
         );
-
         booking.setCheckInDate(request.getCheckInDate());
         booking.setCheckOutDate(request.getCheckOutDate());
-
         return bookingMapper.toDetailResponse(
                 bookingRepository.save(booking)
         );
@@ -211,26 +155,20 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
-
         User user = userService.getUserEntityByEmail(email);
-
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Booking not found"));
-
         if (booking.getStatus() == BookingStatus.CANCELED) {
             throw new IllegalArgumentException(
                     "Booking is already canceled");
         }
-
         if (booking.getStatus() == BookingStatus.EXPIRED) {
             throw new IllegalArgumentException(
                     "Cannot cancel an expired booking");
         }
-
         booking.setStatus(BookingStatus.CANCELED);
-
         bookingRepository.save(booking);
     }
 
@@ -245,10 +183,8 @@ public class BookingServiceImpl implements BookingService {
             Accommodation accommodation,
             LocalDate checkIn,
             LocalDate checkOut) {
-
         List<BookingStatus> activeStatuses =
                 Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED);
-
         long overlapping =
                 bookingRepository.countOverlappingBookings(
                         accommodation.getId(),
@@ -256,7 +192,6 @@ public class BookingServiceImpl implements BookingService {
                         checkOut,
                         activeStatuses
                 );
-
         if (overlapping >= accommodation.getAvailability()) {
             throw new IllegalArgumentException(
                     "Accommodation not available for selected dates");
@@ -268,10 +203,8 @@ public class BookingServiceImpl implements BookingService {
             LocalDate checkIn,
             LocalDate checkOut,
             Long excludeBookingId) {
-
         List<BookingStatus> activeStatuses =
                 Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED);
-
         long overlapping =
                 bookingRepository.countOverlappingBookingsExcluding(
                         accommodation.getId(),
@@ -280,31 +213,10 @@ public class BookingServiceImpl implements BookingService {
                         activeStatuses,
                         excludeBookingId
                 );
-
         if (overlapping >= accommodation.getAvailability()) {
             throw new IllegalArgumentException(
                     "Accommodation not available for selected dates");
         }
     }
 
-    private List<Booking> fetchBookingsWithRelations(List<Booking> bookings) {
-        if (bookings.isEmpty()) {
-            return bookings;
-        }
-
-        List<Long> bookingIds = bookings.stream()
-                .map(Booking::getId)
-                .collect(Collectors.toList());
-
-        List<Booking> bookingsWithRelations =
-                bookingRepository.findByIdsWithRelations(bookingIds);
-
-        return bookingIds.stream()
-                .map(id -> bookingsWithRelations.stream()
-                        .filter(b -> b.getId().equals(id))
-                        .findFirst()
-                        .orElse(null))
-                .filter(booking -> booking != null)
-                .collect(Collectors.toList());
-    }
 }

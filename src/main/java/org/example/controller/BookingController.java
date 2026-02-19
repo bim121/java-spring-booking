@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import org.example.dto.request.BookingRequest;
 import org.example.dto.response.BookingDetailResponse;
 import org.example.service.booking.BookingService;
-import org.example.service.user.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -34,22 +33,19 @@ public class BookingController {
     public ResponseEntity<BookingDetailResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
             Authentication authentication) {
-
         BookingDetailResponse response =
                 bookingService.createBooking(request, authentication.getName());
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Page<BookingDetailResponse>> getBookings(
-            @RequestParam(required = false) Long user_id,
+            @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
-
         return ResponseEntity.ok(
-                bookingService.getAllBookingsForManager(user_id, status, pageable)
+                bookingService.getAllBookingsForManager(userId, status, pageable)
         );
     }
 
@@ -58,7 +54,6 @@ public class BookingController {
             @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable,
             Authentication authentication) {
-
         return ResponseEntity.ok(
                 bookingService.getUserBookings(
                         authentication.getName(), status, pageable)
@@ -69,17 +64,14 @@ public class BookingController {
     public ResponseEntity<BookingDetailResponse> getBookingById(
             @PathVariable Long id,
             Authentication authentication) {
-
         boolean isManagerOrAdmin = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(auth -> auth.equals("ROLE_ADMIN") || auth.equals("ROLE_MANAGER"));
-
         if (isManagerOrAdmin) {
             return ResponseEntity.ok(
                     bookingService.getBookingByIdForManager(id)
             );
         }
-
         return ResponseEntity.ok(
                 bookingService.getBookingById(id, authentication.getName())
         );
@@ -90,7 +82,6 @@ public class BookingController {
             @PathVariable Long id,
             @Valid @RequestBody BookingRequest request,
             Authentication authentication) {
-
         return ResponseEntity.ok(
                 bookingService.updateBooking(id, request, authentication.getName())
         );
@@ -100,7 +91,6 @@ public class BookingController {
     public ResponseEntity<Void> cancelBooking(
             @PathVariable Long id,
             Authentication authentication) {
-
         bookingService.cancelBooking(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
