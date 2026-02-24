@@ -34,6 +34,7 @@ telegram:
   bot:
     token: ${TELEGRAM_BOT_TOKEN:your_telegram_bot_token}
     chat-id: ${TELEGRAM_CHAT_ID:your_telegram_chat_id}
+    api-url: ${TELEGRAM_API_URL:https://api.telegram.org/bot}
 
 server:
   port: ${SERVER_PORT:8080}

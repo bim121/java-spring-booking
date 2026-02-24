@@ -14,6 +14,7 @@ import org.example.model.BookingStatus;
 import org.example.repository.BookingRepository;
 import org.example.service.accommodation.AccommodationService;
 import org.example.service.booking.BookingService;
+import org.example.service.notification.NotificationService;
 import org.example.service.user.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +28,7 @@ public class BookingServiceImpl implements BookingService {
     private final AccommodationService accommodationService;
     private final UserService userService;
     private final BookingMapper bookingMapper;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -51,9 +53,11 @@ public class BookingServiceImpl implements BookingService {
         booking.setAccommodation(accommodation);
         booking.setUser(user);
         booking.setStatus(BookingStatus.PENDING);
-        return bookingMapper.toDetailResponse(
-                bookingRepository.save(booking)
-        );
+        Booking savedBooking = bookingRepository.save(booking);
+        Booking bookingWithRelations = bookingRepository.findById(savedBooking.getId())
+                .orElseThrow(() -> new IllegalStateException("Failed to load saved booking"));
+        notificationService.notifyBookingCreated(bookingWithRelations);
+        return bookingMapper.toDetailResponse(savedBooking);
     }
 
     @Override
@@ -169,7 +173,10 @@ public class BookingServiceImpl implements BookingService {
                     "Cannot cancel an expired booking");
         }
         booking.setStatus(BookingStatus.CANCELED);
-        bookingRepository.save(booking);
+        Booking canceledBooking = bookingRepository.save(booking);
+        Booking bookingWithRelations = bookingRepository.findById(canceledBooking.getId())
+                .orElseThrow(() -> new IllegalStateException("Failed to load canceled booking"));
+        notificationService.notifyBookingCanceled(bookingWithRelations);
     }
 
     private void validateBookingDates(LocalDate checkIn, LocalDate checkOut) {

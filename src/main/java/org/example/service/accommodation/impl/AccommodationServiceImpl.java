@@ -2,26 +2,35 @@ package org.example.service.accommodation.impl;
 
 import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.dto.request.AccommodationRequest;
 import org.example.dto.response.AccommodationResponse;
 import org.example.entity.Accommodation;
 import org.example.mapper.AccommodationMapper;
 import org.example.repository.AccommodationRepository;
 import org.example.service.accommodation.AccommodationService;
+import org.example.service.notification.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @AllArgsConstructor
 public class AccommodationServiceImpl implements AccommodationService {
     private final AccommodationRepository accommodationRepository;
     private final AccommodationMapper accommodationMapper;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
     public AccommodationResponse createAccommodation(AccommodationRequest request) {
         Accommodation accommodation = accommodationMapper.toEntity(request);
         Accommodation saved = accommodationRepository.save(accommodation);
+        try {
+            notificationService.notifyAccommodationCreated(saved);
+        } catch (Exception e) {
+            log.error("Failed to send notification for accommodation creation", e);
+        }
         return accommodationMapper.toResponse(saved);
     }
 
@@ -59,10 +68,13 @@ public class AccommodationServiceImpl implements AccommodationService {
     @Override
     @Transactional
     public void deleteAccommodation(Long id) {
-        if (!accommodationRepository.existsById(id)) {
-            throw new IllegalArgumentException("Accommodation not found");
-        }
+        Accommodation accommodation = getAccommodationEntityById(id);
         accommodationRepository.deleteById(id);
+        try {
+            notificationService.notifyAccommodationReleased(accommodation);
+        } catch (Exception e) {
+            log.error("Failed to send notification for accommodation release", e);
+        }
     }
 
     @Override

@@ -9,7 +9,7 @@ A comprehensive booking service application built with Spring Boot for managing 
 - **JWT Authentication**: Secure token-based authentication
 - **Role-Based Access Control**: Admin, Manager, and Customer roles
 - **Payment Integration**: Stripe payment processing (to be implemented)
-- **Notifications**: Telegram notifications (to be implemented)
+- **Notifications**: Telegram notifications for bookings, accommodations, and payments
 - **API Documentation**: Swagger/OpenAPI documentation
 - **Database Migrations**: Liquibase for database version control
 - **Docker Support**: Containerized deployment with docker-compose
@@ -61,6 +61,7 @@ STRIPE_API_KEY=sk_test_your_stripe_key
 STRIPE_PUBLIC_KEY=pk_test_your_stripe_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
+TELEGRAM_API_URL=https://api.telegram.org/bot
 SERVER_PORT=8080
 ```
 
