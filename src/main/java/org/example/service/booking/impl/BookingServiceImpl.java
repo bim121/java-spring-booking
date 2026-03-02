@@ -12,6 +12,7 @@ import org.example.entity.User;
 import org.example.mapper.BookingMapper;
 import org.example.model.BookingStatus;
 import org.example.repository.BookingRepository;
+import org.example.repository.specification.BookingSpecification;
 import org.example.service.accommodation.AccommodationService;
 import org.example.service.booking.BookingService;
 import org.example.service.notification.NotificationService;
@@ -57,7 +58,7 @@ public class BookingServiceImpl implements BookingService {
         Booking bookingWithRelations = bookingRepository.findById(savedBooking.getId())
                 .orElseThrow(() -> new IllegalStateException("Failed to load saved booking"));
         notificationService.notifyBookingCreated(bookingWithRelations);
-        return bookingMapper.toDetailResponse(savedBooking);
+        return bookingMapper.toDetailResponse(bookingWithRelations);
     }
 
     @Override
@@ -71,11 +72,9 @@ public class BookingServiceImpl implements BookingService {
         if (status != null && !status.isBlank()) {
             bookingStatus = BookingStatus.valueOf(status.toUpperCase());
         }
-        Page<Booking> bookingPage = bookingRepository.findAllBookings(
-                user.getId(),
-                bookingStatus,
-                pageable
-        );
+        Page<Booking> bookingPage = bookingRepository.findAll(
+                BookingSpecification.filterBy(user.getId(), bookingStatus),
+                pageable);
         return bookingPage.map(bookingMapper::toDetailResponse);
     }
 
@@ -93,11 +92,9 @@ public class BookingServiceImpl implements BookingService {
                 throw new IllegalArgumentException("Invalid booking status: " + status);
             }
         }
-        Page<Booking> bookingPage = bookingRepository.findAllBookings(
-                userId,
-                bookingStatus,
-                pageable
-        );
+        Page<Booking> bookingPage = bookingRepository.findAll(
+                BookingSpecification.filterBy(userId, bookingStatus),
+                pageable);
         return bookingPage.map(bookingMapper::toDetailResponse);
     }
 
@@ -197,7 +194,8 @@ public class BookingServiceImpl implements BookingService {
                         accommodation.getId(),
                         checkIn,
                         checkOut,
-                        activeStatuses
+                        activeStatuses,
+                        null
                 );
         if (overlapping >= accommodation.getAvailability()) {
             throw new IllegalArgumentException(
@@ -213,7 +211,7 @@ public class BookingServiceImpl implements BookingService {
         List<BookingStatus> activeStatuses =
                 Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED);
         long overlapping =
-                bookingRepository.countOverlappingBookingsExcluding(
+                bookingRepository.countOverlappingBookings(
                         accommodation.getId(),
                         checkIn,
                         checkOut,

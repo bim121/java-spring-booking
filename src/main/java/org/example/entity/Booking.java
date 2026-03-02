@@ -10,6 +10,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedAttributeNode;
+import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
@@ -19,6 +21,13 @@ import org.example.model.BookingStatus;
 
 @Entity
 @Table(name = "bookings")
+@NamedEntityGraph(
+        name = "Booking.withAccommodationAndUser",
+        attributeNodes = {
+                @NamedAttributeNode("accommodation"),
+                @NamedAttributeNode("user")
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

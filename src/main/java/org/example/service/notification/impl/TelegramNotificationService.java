@@ -31,19 +31,20 @@ public class TelegramNotificationService implements NotificationService {
         this.botToken = botToken;
         this.chatId = chatId;
         this.apiUrl = apiUrl;
-        
-        // Валидация конфигурации
-        log.info("Initializing TelegramNotificationService with chatId: '{}', botToken: '{}'", 
-                chatId != null ? chatId : "NULL", 
+
+        log.info("Initializing TelegramNotificationService with chatId: '{}', botToken: '{}'",
+                chatId != null ? chatId : "NULL",
                 botToken != null && !botToken.isBlank() ? "***configured***" : "NOT SET");
-        
+
         if (botToken == null || botToken.isBlank() || botToken.equals("your_telegram_bot_token")) {
             log.warn("TELEGRAM_BOT_TOKEN is not configured properly. Notifications will fail.");
         }
         if (chatId == null || chatId.isBlank() || chatId.equals("your_telegram_chat_id")) {
-            log.error("TELEGRAM_CHAT_ID is not configured! Current value: '{}'. Please set TELEGRAM_CHAT_ID in .env file.", chatId);
+            log.error("TELEGRAM_CHAT_ID is not configured! Current value: '{}'. "
+                    + "Please set TELEGRAM_CHAT_ID in .env file.", chatId);
         } else {
-            log.info("Telegram notification service initialized successfully. Chat ID: '{}'", chatId);
+            log.info("Telegram notification service initialized successfully. Chat ID: '{}'",
+                    chatId);
         }
     }
 
@@ -163,12 +164,15 @@ public class TelegramNotificationService implements NotificationService {
         try {
             if (chatId == null || chatId.isBlank() || chatId.equals("your_telegram_chat_id")) {
                 log.error("Cannot send Telegram notification: TELEGRAM_CHAT_ID is not configured. "
-                        + "chatId value: '{}', isNull: {}, isBlank: {}", 
+                        + "chatId value: '{}', isNull: {}, isBlank: {}",
                         chatId, chatId == null, chatId != null && chatId.isBlank());
                 return;
             }
-            if (botToken == null || botToken.isBlank() || botToken.equals("your_telegram_bot_token")) {
-                log.error("Cannot send Telegram notification: TELEGRAM_BOT_TOKEN is not configured");
+            if (botToken == null
+                    || botToken.isBlank()
+                    || botToken.equals("your_telegram_bot_token")) {
+                log.error("Cannot send Telegram notification: TELEGRAM_BOT_TOKEN "
+                        + "is not configured");
                 return;
             }
             String url = apiUrl + botToken + SEND_MESSAGE_ENDPOINT;

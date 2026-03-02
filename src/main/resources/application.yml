@@ -41,6 +41,9 @@ server:
   servlet:
     context-path: /api
 
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
 springdoc:
   api-docs:
     path: /api-docs

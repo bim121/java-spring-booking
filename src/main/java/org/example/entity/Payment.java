@@ -10,6 +10,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedAttributeNode;
+import jakarta.persistence.NamedEntityGraph;
+import jakarta.persistence.NamedSubgraph;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.net.URL;
@@ -20,6 +23,21 @@ import org.example.model.PaymentStatus;
 
 @Entity
 @Table(name = "payments")
+@NamedEntityGraph(
+        name = "Payment.withBookingUserAccommodation",
+        attributeNodes = {
+                @NamedAttributeNode(value = "booking", subgraph = "bookingSubgraph")
+        },
+        subgraphs = {
+                @NamedSubgraph(
+                        name = "bookingSubgraph",
+                        attributeNodes = {
+                                @NamedAttributeNode("user"),
+                                @NamedAttributeNode("accommodation")
+                        }
+                )
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
