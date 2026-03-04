@@ -1,11 +1,12 @@
 package org.example.service.accommodation.impl;
 
 import java.util.List;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.dto.request.AccommodationRequest;
 import org.example.dto.response.AccommodationResponse;
 import org.example.entity.Accommodation;
+import org.example.exception.EntityNotFoundException;
 import org.example.mapper.AccommodationMapper;
 import org.example.repository.AccommodationRepository;
 import org.example.service.accommodation.AccommodationService;
@@ -15,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AccommodationServiceImpl implements AccommodationService {
     private final AccommodationRepository accommodationRepository;
     private final AccommodationMapper accommodationMapper;
@@ -82,6 +83,6 @@ public class AccommodationServiceImpl implements AccommodationService {
     public Accommodation getAccommodationEntityById(Long id) {
         return accommodationRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Accommodation not found"));
+                        new EntityNotFoundException("Accommodation not found with id: " + id));
     }
 }

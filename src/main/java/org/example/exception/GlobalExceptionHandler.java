@@ -23,6 +23,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleEntityNotFoundException(
+            EntityNotFoundException ex) {
+        log.error("EntityNotFoundException: {}", ex.getMessage(), ex);
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(RegistrationException.class)
+    public ResponseEntity<Map<String, String>> handleRegistrationException(
+            RegistrationException ex) {
+        log.error("RegistrationException: {}", ex.getMessage(), ex);
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        if (ex instanceof EmailAlreadyExistsException) {
+            error.put("email", ((EmailAlreadyExistsException) ex).getEmail());
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentialsException(
             BadCredentialsException ex) {

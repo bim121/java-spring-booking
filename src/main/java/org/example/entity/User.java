@@ -8,16 +8,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.example.model.UserRole;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode
+@ToString
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,5 +41,5 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role = UserRole.CUSTOMER;
+    private UserRole role;
 }

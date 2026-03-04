@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.dto.request.UpdateUserRequest;
 import org.example.dto.request.UpdateUserRoleRequest;
 import org.example.dto.response.UserResponse;
@@ -24,8 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@RequiredArgsConstructor
 @RestController
-@AllArgsConstructor
 @RequestMapping("/users")
 @Tag(name = "Users", description = "User profile and role management endpoints")
 @SecurityRequirement(name = "bearerAuth")

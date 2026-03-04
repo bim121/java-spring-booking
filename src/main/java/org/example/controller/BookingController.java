@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.dto.request.BookingRequest;
 import org.example.dto.response.BookingDetailResponse;
 import org.example.service.booking.BookingService;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/bookings")
 @Tag(name = "Bookings", description = "Booking management endpoints")

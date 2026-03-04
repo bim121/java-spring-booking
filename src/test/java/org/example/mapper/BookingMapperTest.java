@@ -28,7 +28,7 @@ class BookingMapperTest {
         assertNull(booking.getId());
         assertNull(booking.getAccommodation());
         assertNull(booking.getUser());
-        assertEquals(BookingStatus.PENDING, booking.getStatus());
+        assertNull(booking.getStatus());
         assertEquals(request.getCheckInDate(), booking.getCheckInDate());
         assertEquals(request.getCheckOutDate(), booking.getCheckOutDate());
     }

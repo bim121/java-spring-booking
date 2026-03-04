@@ -3,12 +3,13 @@ package org.example.service.booking.impl;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.dto.request.BookingRequest;
 import org.example.dto.response.BookingDetailResponse;
 import org.example.entity.Accommodation;
 import org.example.entity.Booking;
 import org.example.entity.User;
+import org.example.exception.EntityNotFoundException;
 import org.example.mapper.BookingMapper;
 import org.example.model.BookingStatus;
 import org.example.repository.BookingRepository;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final AccommodationService accommodationService;
@@ -107,7 +108,7 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Booking not found"));
+                        new EntityNotFoundException("Booking not found with id: " + bookingId));
         return bookingMapper.toDetailResponse(booking);
     }
 
@@ -117,7 +118,7 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository
                 .findById(bookingId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Booking not found"));
+                        new EntityNotFoundException("Booking not found with id: " + bookingId));
 
         return bookingMapper.toDetailResponse(booking);
     }
@@ -132,7 +133,7 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Booking not found"));
+                        new EntityNotFoundException("Booking not found with id: " + bookingId));
         if (booking.getStatus() == BookingStatus.CANCELED
                 || booking.getStatus() == BookingStatus.EXPIRED) {
             throw new IllegalArgumentException(
@@ -160,7 +161,7 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository
                 .findByIdAndUserId(bookingId, user.getId())
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Booking not found"));
+                        new EntityNotFoundException("Booking not found with id: " + bookingId));
         if (booking.getStatus() == BookingStatus.CANCELED) {
             throw new IllegalArgumentException(
                     "Booking is already canceled");

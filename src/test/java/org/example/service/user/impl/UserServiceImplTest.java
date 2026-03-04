@@ -16,6 +16,7 @@ import org.example.dto.request.UpdateUserRequest;
 import org.example.dto.response.JwtResponse;
 import org.example.dto.response.UserResponse;
 import org.example.entity.User;
+import org.example.exception.EmailAlreadyExistsException;
 import org.example.mapper.UserMapper;
 import org.example.model.UserRole;
 import org.example.repository.UserRepository;
@@ -49,9 +50,9 @@ class UserServiceImplTest {
 
         when(userRepository.existsByEmail("a@b.com")).thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        EmailAlreadyExistsException ex = assertThrows(EmailAlreadyExistsException.class,
                 () -> userService.register(request));
-        assertEquals("Email already exists", ex.getMessage());
+        assertEquals("a@b.com", ex.getEmail());
 
         verify(userRepository, never()).save(any());
     }
@@ -133,9 +134,9 @@ class UserServiceImplTest {
         when(userRepository.findByEmail("old@b.com")).thenReturn(Optional.of(existing));
         when(userRepository.existsByEmail("new@b.com")).thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        EmailAlreadyExistsException ex = assertThrows(EmailAlreadyExistsException.class,
                 () -> userService.updateCurrentUser("old@b.com", request));
-        assertEquals("Email already exists", ex.getMessage());
+        assertEquals("new@b.com", ex.getEmail());
     }
 
     @Test

@@ -14,9 +14,11 @@ import jakarta.persistence.NamedAttributeNode;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.example.model.BookingStatus;
 
 @Entity
@@ -28,9 +30,11 @@ import org.example.model.BookingStatus;
                 @NamedAttributeNode("user")
         }
 )
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode(exclude = {"accommodation", "user"})
+@ToString(exclude = {"accommodation", "user"})
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,5 +56,5 @@ public class Booking {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private BookingStatus status = BookingStatus.PENDING;
+    private BookingStatus status;
 }

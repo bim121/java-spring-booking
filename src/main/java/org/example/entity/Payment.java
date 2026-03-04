@@ -16,9 +16,11 @@ import jakarta.persistence.NamedSubgraph;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.net.URL;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.example.model.PaymentStatus;
 
 @Entity
@@ -38,9 +40,11 @@ import org.example.model.PaymentStatus;
                 )
         }
 )
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode(exclude = {"booking"})
+@ToString(exclude = {"booking"})
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,7 +52,7 @@ public class Payment {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentStatus status = PaymentStatus.PENDING;
+    private PaymentStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "booking_id", nullable = false)

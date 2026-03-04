@@ -15,17 +15,21 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.example.model.AccommodationType;
 import org.example.model.Address;
 
 @Entity
 @Table(name = "accommodations")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
+@EqualsAndHashCode
+@ToString
 public class Accommodation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,12 +1,14 @@
 package org.example.service.user.impl;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.dto.request.LoginRequest;
 import org.example.dto.request.RegisterRequest;
 import org.example.dto.request.UpdateUserRequest;
 import org.example.dto.response.JwtResponse;
 import org.example.dto.response.UserResponse;
 import org.example.entity.User;
+import org.example.exception.EmailAlreadyExistsException;
+import org.example.exception.EntityNotFoundException;
 import org.example.mapper.UserMapper;
 import org.example.model.UserRole;
 import org.example.repository.UserRepository;
@@ -18,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -30,7 +32,7 @@ public class UserServiceImpl implements UserService {
     public UserResponse register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new EmailAlreadyExistsException(request.getEmail());
         }
 
         User user = userMapper.toEntity(request);
@@ -78,7 +80,7 @@ public class UserServiceImpl implements UserService {
                 && !request.getEmail().equals(user.getEmail())
                 && userRepository.existsByEmail(request.getEmail())) {
 
-            throw new IllegalArgumentException("Email already exists");
+            throw new EmailAlreadyExistsException(request.getEmail());
         }
 
         userMapper.updateEntityFromRequest(request, user);
@@ -106,7 +108,7 @@ public class UserServiceImpl implements UserService {
     public User getUserEntityByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("User not found"));
+                        new EntityNotFoundException("User not found with email: " + email));
     }
 
     @Override
@@ -114,6 +116,6 @@ public class UserServiceImpl implements UserService {
     public User getUserEntityById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("User not found"));
+                        new EntityNotFoundException("User not found with id: " + id));
     }
 }

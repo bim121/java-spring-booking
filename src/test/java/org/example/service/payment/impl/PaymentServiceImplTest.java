@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,14 +27,15 @@ import org.example.model.PaymentStatus;
 import org.example.repository.BookingRepository;
 import org.example.repository.PaymentRepository;
 import org.example.service.notification.NotificationService;
-import org.example.service.user.UserService;
+import org.example.service.payment.StripePaymentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.stubbing.Answer;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,9 +47,9 @@ class PaymentServiceImplTest {
     @Mock
     private PaymentMapper paymentMapper;
     @Mock
-    private UserService userService;
-    @Mock
     private NotificationService notificationService;
+    @Mock
+    private StripePaymentService stripePaymentService;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
@@ -105,7 +106,7 @@ class PaymentServiceImplTest {
         booking.setId(22L);
         booking.setAccommodation(accommodation);
         booking.setCheckInDate(LocalDate.of(2026, 3, 10));
-        booking.setCheckOutDate(LocalDate.of(2026, 3, 13)); // 3 days => 30.00
+        booking.setCheckOutDate(LocalDate.of(2026, 3, 13)); 
         booking.setStatus(BookingStatus.PENDING);
 
         User owner = new User();
@@ -132,9 +133,24 @@ class PaymentServiceImplTest {
                 "cs_test_123");
         when(paymentMapper.toResponse(any(Payment.class))).thenReturn(response);
 
-        try (MockedStatic<Session> sessionStatic = mockStatic(Session.class)) {
-            sessionStatic.when(() -> Session.create(any(SessionCreateParams.class)))
-                    .thenReturn(fakeSession);
+        try {
+            when(stripePaymentService.createLineItem(any(), any(), any()))
+                    .thenReturn(mock(SessionCreateParams.LineItem.class));
+            when(stripePaymentService.createSessionParams(any(), any(), any()))
+                    .thenReturn(mock(SessionCreateParams.class));
+            doAnswer(new Answer<Session>() {
+                @Override
+                public Session answer(InvocationOnMock invocation) throws Throwable {
+                    return fakeSession;
+                }
+            }).when(stripePaymentService).createCheckoutSession(any(SessionCreateParams.class));
+            URL sessionUrl = new URL("https://checkout.stripe.com/pay/cs_test_123");
+            doAnswer(new Answer<URL>() {
+                @Override
+                public URL answer(InvocationOnMock invocation) throws Throwable {
+                    return sessionUrl;
+                }
+            }).when(stripePaymentService).buildSessionUrl(any());
 
             PaymentResponse result = paymentService.createPaymentSession(request, "owner@ex.com");
             assertNotNull(result);
@@ -147,7 +163,9 @@ class PaymentServiceImplTest {
             assertEquals("cs_test_123", saved.getSessionId());
             assertNotNull(saved.getSessionUrl());
 
-            sessionStatic.verify(() -> Session.create(any(SessionCreateParams.class)));
+            verify(stripePaymentService).createCheckoutSession(any(SessionCreateParams.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -192,18 +210,24 @@ class PaymentServiceImplTest {
 
         Session session = mock(Session.class);
         when(session.getPaymentStatus()).thenReturn("paid");
-
-        try (MockedStatic<Session> sessionStatic = mockStatic(Session.class)) {
-            sessionStatic.when(() -> Session.retrieve("cs_1")).thenReturn(session);
-
-            paymentService.handlePaymentSuccess("cs_1");
-
-            assertEquals(PaymentStatus.PAID, payment.getStatus());
-            assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
-            verify(paymentRepository).save(payment);
-            verify(bookingRepository).save(booking);
-            verify(notificationService).notifyPaymentSuccessful(payment);
+        try {
+            doAnswer(new Answer<Session>() {
+                @Override
+                public Session answer(InvocationOnMock invocation) throws Throwable {
+                    return session;
+                }
+            }).when(stripePaymentService).retrieveSession("cs_1");
+        } catch (Exception e) {
+            // Mock setup doesn't actually throw exceptions
         }
+
+        paymentService.handlePaymentSuccess("cs_1");
+
+        assertEquals(PaymentStatus.PAID, payment.getStatus());
+        assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+        verify(paymentRepository).save(payment);
+        verify(bookingRepository).save(booking);
+        verify(notificationService).notifyPaymentSuccessful(payment);
     }
 }
 

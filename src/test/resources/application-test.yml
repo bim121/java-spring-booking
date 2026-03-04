@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  
+  liquibase:
+    enabled: false
+  
+  security:
+    jwt:
+      secret: test-secret-key-for-integration-tests-min-256-bits-required-for-jwt-security
+      expiration: 86400000
+
+stripe:
+  api:
+    key: sk_test_integration_test_key
+
+telegram:
+  bot:
+    token: test_token
+    chat-id: test_chat_id
+    api-url: https://api.telegram.org/bot
+
+server:
+  port: 0
+  servlet:
+    context-path: /api
+
+app:
+  base-url: http://localhost:8080

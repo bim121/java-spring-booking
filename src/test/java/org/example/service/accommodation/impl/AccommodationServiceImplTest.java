@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.example.dto.request.AccommodationRequest;
 import org.example.dto.response.AccommodationResponse;
 import org.example.entity.Accommodation;
+import org.example.exception.EntityNotFoundException;
 import org.example.mapper.AccommodationMapper;
 import org.example.repository.AccommodationRepository;
 import org.example.service.notification.NotificationService;
@@ -71,9 +72,9 @@ class AccommodationServiceImplTest {
     void getAccommodationEntityById_notFound_throws() {
         when(accommodationRepository.findById(99L)).thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        EntityNotFoundException ex = assertThrows(EntityNotFoundException.class,
                 () -> accommodationService.getAccommodationEntityById(99L));
-        assertEquals("Accommodation not found", ex.getMessage());
+        assertEquals("Accommodation not found with id: 99", ex.getMessage());
     }
 }
 
