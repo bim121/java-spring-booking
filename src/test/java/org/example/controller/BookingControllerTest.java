@@ -60,22 +60,24 @@ class BookingControllerTest {
 
     @Test
     void createBooking_returnsCreated() throws Exception {
+        LocalDate checkInDate = LocalDate.now().plusDays(1);
+        LocalDate checkOutDate = LocalDate.now().plusDays(2);
         BookingDetailResponse response = new BookingDetailResponse(
                 1L,
-                LocalDate.now().plusDays(1),
-                LocalDate.now().plusDays(2),
+                checkInDate,
+                checkOutDate,
                 BookingStatus.PENDING,
                 null,
                 null);
         when(bookingService.createBooking(any(), anyString())).thenReturn(response);
 
-        String body = """
+        String body = String.format("""
                 {
                   "accommodationId": 1,
-                  "checkInDate": "2026-03-10",
-                  "checkOutDate": "2026-03-12"
+                  "checkInDate": "%s",
+                  "checkOutDate": "%s"
                 }
-                """;
+                """, checkInDate, checkOutDate);
 
         var auth = new UsernamePasswordAuthenticationToken(
                 "u@ex.com",

@@ -14,6 +14,7 @@ import org.example.dto.response.PaymentResponse;
 import org.example.entity.Booking;
 import org.example.entity.Payment;
 import org.example.exception.EntityNotFoundException;
+import org.example.exception.PaymentCreationException;
 import org.example.mapper.PaymentMapper;
 import org.example.model.PaymentStatus;
 import org.example.repository.BookingRepository;
@@ -95,7 +96,8 @@ public class PaymentServiceImpl implements PaymentService {
             return stripePaymentService.createCheckoutSession(params);
         } catch (StripeException e) {
             log.error("Failed to create Stripe checkout session", e);
-            throw new RuntimeException("Failed to create payment session: " + e.getMessage(), e);
+            throw new PaymentCreationException("Failed to create payment session: "
+                    + e.getMessage(), e);
         }
     }
 
@@ -110,7 +112,7 @@ public class PaymentServiceImpl implements PaymentService {
             return payment;
         } catch (Exception e) {
             log.error("Failed to create payment entity", e);
-            throw new RuntimeException("Failed to create payment: " + e.getMessage(), e);
+            throw new PaymentCreationException("Failed to create payment: " + e.getMessage(), e);
         }
     }
 

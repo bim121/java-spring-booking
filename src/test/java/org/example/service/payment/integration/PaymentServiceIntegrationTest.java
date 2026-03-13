@@ -3,17 +3,8 @@ package org.example.service.payment.integration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import com.stripe.model.checkout.Session;
-import com.stripe.param.checkout.SessionCreateParams;
 import java.math.BigDecimal;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.time.LocalDate;
 import org.example.dto.request.PaymentRequest;
 import org.example.dto.response.PaymentResponse;
@@ -34,13 +25,11 @@ import org.example.service.payment.PaymentService;
 import org.example.service.payment.StripePaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -62,12 +51,17 @@ class PaymentServiceIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    @MockBean
-    private StripePaymentService stripePaymentService;
-
     private User testUser;
     private Accommodation testAccommodation;
     private Booking testBooking;
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public StripePaymentService stripePaymentService() {
+            return new FakeStripePaymentService();
+        }
+    }
 
     @BeforeEach
     void setUp() {
@@ -97,46 +91,6 @@ class PaymentServiceIntegrationTest {
         testBooking.setCheckOutDate(LocalDate.now().plusDays(3));
         testBooking.setStatus(BookingStatus.PENDING);
         testBooking = bookingRepository.save(testBooking);
-        Session mockSession = new Session();
-        ReflectionTestUtils.setField(mockSession, "id", "cs_test_123");
-        ReflectionTestUtils.setField(mockSession, "url", "https://checkout.stripe.com/pay/cs_test_123");
-        when(stripePaymentService.createLineItem(
-                anyString(),
-                anyString(),
-                any(BigDecimal.class)))
-                .thenReturn(mock(SessionCreateParams.LineItem.class));
-        when(stripePaymentService.createSessionParams(
-                anyString(),
-                anyString(),
-                any()))
-                .thenReturn(mock(SessionCreateParams.class));
-        try {
-            doAnswer(new Answer<Session>() {
-                @Override
-                public Session answer(InvocationOnMock invocation) throws Throwable {
-                    return mockSession;
-                }
-            }).when(stripePaymentService).createCheckoutSession(any());
-        } catch (Exception e) {
-            // Mock setup doesn't actually throw exceptions
-        }
-        URL sessionUrl;
-        try {
-            sessionUrl = new URL("https://checkout.stripe.com/pay/cs_test_123");
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-        final URL finalSessionUrl = sessionUrl;
-        try {
-            doAnswer(new Answer<URL>() {
-                @Override
-                public URL answer(InvocationOnMock invocation) throws Throwable {
-                    return finalSessionUrl;
-                }
-            }).when(stripePaymentService).buildSessionUrl(anyString());
-        } catch (Exception e) {
-            // Mock setup doesn't actually throw exceptions
-        }
     }
 
     @Test
