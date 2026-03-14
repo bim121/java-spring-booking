@@ -1,68 +1,66 @@
 package org.example.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
-import org.example.dto.response.UserResponse;
+import org.example.entity.User;
+import org.example.integration.TestConfig;
+import org.example.integration.TestDataFactory;
 import org.example.model.UserRole;
-import org.example.security.JwtTokenProvider;
-import org.example.service.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-@WebMvcTest(controllers = UserController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+@Transactional
 class UserControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private UserService userService;
+    @Autowired
+    private TestDataFactory testDataFactory;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
+    private User testUser;
+    private User adminUser;
+    private String customerToken;
+    private String adminToken;
 
-    private UserResponse createMockResponse() {
-        return new UserResponse(
-                1L,
-                "test@example.com",
-                "John",
-                "Doe",
-                UserRole.CUSTOMER);
+    @BeforeEach
+    void setUp() {
+        testDataFactory.clearAll();
+
+        testUser = testDataFactory.createUser(
+                "test@example.com", "John", "Doe", UserRole.CUSTOMER);
+        customerToken = testDataFactory.generateToken(testUser);
+
+        adminUser = testDataFactory.createAdmin("admin@example.com");
+        adminToken = testDataFactory.generateToken(adminUser);
     }
 
     @Test
     void getCurrentUser_returnsOk() throws Exception {
-        when(userService.getCurrentUser(anyString())).thenReturn(createMockResponse());
-
-        var auth = new UsernamePasswordAuthenticationToken(
-                "test@example.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(get("/users/me")
-                        .principal(auth))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.firstName").value("John"))
+                .andExpect(jsonPath("$.lastName").value("Doe"));
     }
 
     @Test
     void updateCurrentUser_returnsOk() throws Exception {
-        when(userService.updateCurrentUser(anyString(), any()))
-                .thenReturn(createMockResponse());
-
         String body = """
                 {
                   "firstName": "Jane",
@@ -70,43 +68,28 @@ class UserControllerTest {
                 }
                 """;
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "test@example.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(put("/users/me")
+        mockMvc.perform(put("/api/users/me")
+                        .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)
-                        .principal(auth))
-                .andExpect(status().isOk());
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName").value("Jane"))
+                .andExpect(jsonPath("$.lastName").value("Smith"));
     }
 
     @Test
     void updateUserRole_returnsOk() throws Exception {
-        UserResponse response = new UserResponse(
-                1L,
-                "test@example.com",
-                "John",
-                "Doe",
-                UserRole.MANAGER);
-        when(userService.updateUserRole(anyLong(), any())).thenReturn(response);
-
         String body = """
                 {
                   "role": "MANAGER"
                 }
                 """;
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "admin@example.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-
-        mockMvc.perform(put("/users/1/role")
+        mockMvc.perform(put("/api/users/" + testUser.getId() + "/role")
+                        .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)
-                        .principal(auth))
-                .andExpect(status().isOk());
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value(UserRole.MANAGER.name()));
     }
 }

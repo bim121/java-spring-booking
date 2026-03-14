@@ -1,4 +1,4 @@
-package org.example.service.payment.integration;
+package org.example.integration;
 
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
@@ -6,12 +6,15 @@ import com.stripe.param.checkout.SessionCreateParams;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import lombok.extern.slf4j.Slf4j;
 import org.example.service.payment.StripePaymentService;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class FakeStripePaymentService implements StripePaymentService {
+@Slf4j
+class TestStripePaymentService implements StripePaymentService {
     @Override
     public Session createCheckoutSession(SessionCreateParams params) throws StripeException {
+        log.debug("Test: Creating fake Stripe checkout session");
         Session session = new Session();
         ReflectionTestUtils.setField(session, "id", "cs_test_123");
         ReflectionTestUtils.setField(session, "url", "https://checkout.stripe.com/pay/cs_test_123");
@@ -20,6 +23,7 @@ class FakeStripePaymentService implements StripePaymentService {
 
     @Override
     public Session retrieveSession(String sessionId) throws StripeException {
+        log.debug("Test: Retrieving fake Stripe session: {}", sessionId);
         Session session = new Session();
         ReflectionTestUtils.setField(session, "id", sessionId);
         ReflectionTestUtils.setField(session, "paymentStatus", "paid");

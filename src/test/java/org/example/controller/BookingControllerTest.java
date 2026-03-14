@@ -1,60 +1,68 @@
 package org.example.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
-import java.util.List;
-import org.example.dto.response.BookingDetailResponse;
+import org.example.entity.Accommodation;
+import org.example.entity.Booking;
+import org.example.entity.User;
+import org.example.integration.TestConfig;
+import org.example.integration.TestDataFactory;
 import org.example.model.BookingStatus;
-import org.example.security.JwtTokenProvider;
-import org.example.service.booking.BookingService;
+import org.example.repository.BookingRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-@WebMvcTest(controllers = BookingController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+@Transactional
 class BookingControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private BookingService bookingService;
+    @Autowired
+    private TestDataFactory testDataFactory;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    private BookingRepository bookingRepository;
+
+    private User testUser;
+    private Accommodation testAccommodation;
+    private String customerToken;
+    private String managerToken;
+
+    @BeforeEach
+    void setUp() {
+        testDataFactory.clearAll();
+
+        testUser = testDataFactory.createCustomer("customer@example.com");
+        customerToken = testDataFactory.generateToken(testUser);
+
+        User manager = testDataFactory.createManager("manager@example.com");
+        managerToken = testDataFactory.generateToken(manager);
+
+        testAccommodation = testDataFactory.createDefaultAccommodation();
+    }
 
     @Test
     void getMyBookings_returnsOk() throws Exception {
-        when(bookingService.getUserBookings(anyString(), any(), any()))
-                .thenReturn(new PageImpl<>(
-                        java.util.List.of(),
-                        PageRequest.of(0, 20),
-                        0));
-
-        var auth = new UsernamePasswordAuthenticationToken(
-                "u@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(get("/bookings/my")
+        mockMvc.perform(get("/api/bookings/my")
+                        .header("Authorization", "Bearer " + customerToken)
                         .param("page", "0")
-                        .param("size", "20")
-                        .principal(auth))
+                        .param("size", "20"))
                 .andExpect(status().isOk());
     }
 
@@ -62,54 +70,39 @@ class BookingControllerTest {
     void createBooking_returnsCreated() throws Exception {
         LocalDate checkInDate = LocalDate.now().plusDays(1);
         LocalDate checkOutDate = LocalDate.now().plusDays(2);
-        BookingDetailResponse response = new BookingDetailResponse(
-                1L,
-                checkInDate,
-                checkOutDate,
-                BookingStatus.PENDING,
-                null,
-                null);
-        when(bookingService.createBooking(any(), anyString())).thenReturn(response);
 
         String body = String.format("""
                 {
-                  "accommodationId": 1,
+                  "accommodationId": %d,
                   "checkInDate": "%s",
                   "checkOutDate": "%s"
                 }
-                """, checkInDate, checkOutDate);
+                """, testAccommodation.getId(), checkInDate, checkOutDate);
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "u@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(post("/bookings")
+        mockMvc.perform(post("/api/bookings")
+                        .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)
-                        .principal(auth))
-                .andExpect(status().isCreated());
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.checkInDate").value(checkInDate.toString()))
+                .andExpect(jsonPath("$.checkOutDate").value(checkOutDate.toString()))
+                .andExpect(jsonPath("$.status").value(BookingStatus.PENDING.name()));
     }
 
     @Test
     void getBookingById_returnsOk() throws Exception {
-        when(bookingService.getBookingByIdForManager(anyLong()))
-                .thenReturn(new BookingDetailResponse(
-                        1L,
-                        null,
-                        null,
-                        BookingStatus.PENDING,
-                        null,
-                        null));
+        Booking booking = new Booking();
+        booking.setUser(testUser);
+        booking.setAccommodation(testAccommodation);
+        booking.setCheckInDate(LocalDate.now().plusDays(1));
+        booking.setCheckOutDate(LocalDate.now().plusDays(2));
+        booking.setStatus(BookingStatus.PENDING);
+        booking = bookingRepository.save(booking);
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "m@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_MANAGER")));
-
-        mockMvc.perform(get("/bookings/1")
-                        .principal(auth))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/bookings/" + booking.getId())
+                        .header("Authorization", "Bearer " + managerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(booking.getId()));
     }
 }
 

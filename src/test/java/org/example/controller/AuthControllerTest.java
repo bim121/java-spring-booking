@@ -1,45 +1,46 @@
 package org.example.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import org.example.dto.response.JwtResponse;
-import org.example.dto.response.UserResponse;
-import org.example.model.UserRole;
-import org.example.security.JwtTokenProvider;
+import org.example.dto.request.RegisterRequest;
+import org.example.integration.TestConfig;
+import org.example.repository.UserRepository;
 import org.example.service.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-@WebMvcTest(controllers = AuthController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+@Transactional
 class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @Autowired
     private UserService userService;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    private UserRepository userRepository;
+
+    @BeforeEach
+    void setUp() {
+        userRepository.deleteAll();
+    }
 
     @Test
     void register_returnsCreated() throws Exception {
-        UserResponse response = new UserResponse(
-                1L,
-                "test@example.com",
-                "John",
-                "Doe",
-                UserRole.CUSTOMER);
-        when(userService.register(any())).thenReturn(response);
-
         String body = """
                 {
                   "email": "test@example.com",
@@ -49,27 +50,36 @@ class AuthControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.firstName").value("John"))
+                .andExpect(jsonPath("$.lastName").value("Doe"));
     }
 
     @Test
     void login_returnsOk() throws Exception {
-        JwtResponse response = new JwtResponse("token123", "Bearer");
-        when(userService.login(any())).thenReturn(response);
+        RegisterRequest registerRequest = new RegisterRequest();
+        registerRequest.setEmail("login@example.com");
+        registerRequest.setFirstName("Test");
+        registerRequest.setLastName("User");
+        registerRequest.setPassword("password123");
+        userService.register(registerRequest);
 
         String body = """
                 {
-                  "email": "test@example.com",
+                  "email": "login@example.com",
                   "password": "password123"
                 }
                 """;
 
-        mockMvc.perform(post("/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.type").value("Bearer"));
     }
 }

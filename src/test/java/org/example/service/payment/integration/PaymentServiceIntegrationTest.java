@@ -21,19 +21,19 @@ import org.example.repository.AccommodationRepository;
 import org.example.repository.BookingRepository;
 import org.example.repository.PaymentRepository;
 import org.example.repository.UserRepository;
+import org.example.integration.TestConfig;
 import org.example.service.payment.PaymentService;
-import org.example.service.payment.StripePaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestConfig.class)
 @Transactional
 class PaymentServiceIntegrationTest {
     @Autowired
@@ -54,14 +54,6 @@ class PaymentServiceIntegrationTest {
     private User testUser;
     private Accommodation testAccommodation;
     private Booking testBooking;
-
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        public StripePaymentService stripePaymentService() {
-            return new FakeStripePaymentService();
-        }
-    }
 
     @BeforeEach
     void setUp() {

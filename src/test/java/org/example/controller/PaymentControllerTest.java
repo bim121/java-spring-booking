@@ -1,110 +1,105 @@
 package org.example.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
-import java.net.URL;
-import java.util.List;
-import org.example.dto.response.PaymentDetailResponse;
-import org.example.dto.response.PaymentResponse;
+import org.example.entity.Accommodation;
+import org.example.entity.Booking;
+import org.example.entity.Payment;
+import org.example.entity.User;
+import org.example.integration.TestConfig;
+import org.example.integration.TestDataFactory;
 import org.example.model.PaymentStatus;
-import org.example.security.JwtTokenProvider;
-import org.example.service.payment.PaymentService;
+import org.example.repository.PaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-@WebMvcTest(controllers = PaymentController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+@Transactional
 class PaymentControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private PaymentService paymentService;
+    @Autowired
+    private TestDataFactory testDataFactory;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    private User testUser;
+    private User managerUser;
+    private Accommodation testAccommodation;
+    private Booking testBooking;
+    private String customerToken;
+    private String managerToken;
+
+    @BeforeEach
+    void setUp() {
+        testDataFactory.clearAll();
+
+        testUser = testDataFactory.createCustomer("customer@example.com");
+        customerToken = testDataFactory.generateToken(testUser);
+
+        managerUser = testDataFactory.createManager("manager@example.com");
+        managerToken = testDataFactory.generateToken(managerUser);
+
+        testAccommodation = testDataFactory.createDefaultAccommodation();
+        testBooking = testDataFactory.createPendingBooking(testUser, testAccommodation);
+    }
 
     @Test
     void getMyPayments_returnsOk() throws Exception {
-        when(paymentService.getUserPayments(anyString(), any(), any()))
-                .thenReturn(new PageImpl<>(java.util.List.of(), PageRequest.of(0, 20), 0));
-
-        var auth = new UsernamePasswordAuthenticationToken(
-                "u@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(get("/payments/my")
+        mockMvc.perform(get("/api/payments/my")
+                        .header("Authorization", "Bearer " + customerToken)
                         .param("page", "0")
-                        .param("size", "20")
-                        .principal(auth))
+                        .param("size", "20"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void createPaymentSession_returnsCreated() throws Exception {
-        PaymentResponse response = new PaymentResponse(
-                1L,
-                PaymentStatus.PENDING,
-                10L,
-                new BigDecimal("30.00"),
-                new URL("https://checkout.stripe.com/pay/cs_test"),
-                "cs_test");
-        when(paymentService.createPaymentSession(any(), anyString())).thenReturn(response);
-
-        String body = """
+        String body = String.format("""
                 {
-                  "bookingId": 10
+                  "bookingId": %d
                 }
-                """;
+                """, testBooking.getId());
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "u@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
-
-        mockMvc.perform(post("/payments")
+        mockMvc.perform(post("/api/payments")
+                        .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)
-                        .principal(auth))
-                .andExpect(status().isCreated());
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value(PaymentStatus.PENDING.name()))
+                .andExpect(jsonPath("$.bookingId").value(testBooking.getId()));
     }
 
     @Test
     void getPaymentById_returnsOk() throws Exception {
-        when(paymentService.getPaymentByIdForManager(anyLong()))
-                .thenReturn(new PaymentDetailResponse(
-                        1L,
-                        PaymentStatus.PENDING,
-                        new BigDecimal("30.00"),
-                        null,
-                        "cs_test",
-                        null));
+        Payment payment = new Payment();
+        payment.setBooking(testBooking);
+        payment.setAmountToPay(new BigDecimal("100.00"));
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setSessionId("cs_test_123");
+        payment = paymentRepository.save(payment);
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                "m@ex.com",
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_MANAGER")));
-
-        mockMvc.perform(get("/payments/1")
-                        .principal(auth))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/payments/" + payment.getId())
+                        .header("Authorization", "Bearer " + managerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(payment.getId()));
     }
 }
 

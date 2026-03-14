@@ -1,49 +1,66 @@
 package org.example.exception;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import org.example.controller.AuthController;
-import org.example.security.JwtTokenProvider;
-import org.example.service.user.UserService;
+import org.example.integration.TestConfig;
+import org.example.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
-@WebMvcTest(controllers = AuthController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+@Transactional
 class GlobalExceptionHandlerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private UserService userService;
+    @Autowired
+    private UserRepository userRepository;
 
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider;
+    @BeforeEach
+    void setUp() {
+        userRepository.deleteAll();
+    }
 
     @Test
-    void handleIllegalArgumentException_returnsBadRequest() throws Exception {
-        when(userService.register(any())).thenThrow(new IllegalArgumentException("Invalid data"));
+    void handleEmailAlreadyExistsException_returnsConflict() throws Exception {
+        String body = """
+                {
+                  "email": "test@test.com",
+                  "firstName": "Test",
+                  "lastName": "User",
+                  "password": "password123"
+                }
+                """;
 
-        mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"test@test.com\",\"firstName\":\"Test\","
-                                + "\"lastName\":\"User\",\"password\":\"password123\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists());
+                        .content(body))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").exists())
+                .andExpect(jsonPath("$.email").value("test@test.com"));
     }
 
     @Test
     void handleValidationExceptions_returnsBadRequest() throws Exception {
-        mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"invalid-email\"}"))
                 .andExpect(status().isBadRequest())
